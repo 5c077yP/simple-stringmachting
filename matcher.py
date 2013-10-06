@@ -16,44 +16,86 @@ from uuid import uuid1
 
 import pycassa
 import ujson as json
+import MySQLdb
 
 def read_arguments():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--config', '-c', required=True)
     p.add_argument('--container', '-t', required=True,
-                   choices=['StringContainer', 'CassandraContainer'])
+                   choices=['MemoryContainer', 'CassandraContainer'])
     return p.parse_args()
 
+class AbstractContainer(object):
+    ''' Abstraction layer to interact with strings in a containers '''
+    def _load(key):
+        raise NotImplementedError
+    def _append(key, value, data):
+        raise NotImplementedError
+
+    def check(self, key, value):
+        data = self._load(key)
+        if value not in data:
+            self._append(key, value, data)
+        return data
+
 # memory structure to match in memory
-class StringContainer(object):
+class MemoryContainer(object):
     ''' Abstraction layer to interact with strings in a containers '''
     def __init__(self):
         self.container = {}
-    def check(self, key, value):
+
+    def _load(key):
         if key not in self.container:
-            self.container[key] = set()
-        self.container[key].add(value)
+            self.container[key] = list()
         return self.container[key]
+
+    def _append(key, value, data):
+        self.container[key].append(value)
+        return self.container[key]
+
+# class MysqlContainer(object):
+#     ''' Abstraction layer to interact with strings in a containers '''
+#     def __init__(self, mysql_opts):
+#         self.con = MySQLdb.connection(**mysql_opts)
+
+#     def _load(key):
+#         c = self.con.cursor()
+#         c.execute(" SELECT index, value FROM ids WHERE key = ? ", [key])
+#         data = list()
+#         for (index, value) in c.fetchall():
+#             data.append(tuple(json.loads(value)))
+#         return data
+
+#     def _append(key, value, data):
+#         data.append(value)
+#         i = 0
+#         d = {}
+#         for value in data:
+#             d[str(i)] = json.dumps(value)
+#             i += 1
+#         self.con.insert(key, d)
 
 class CassandraContainer(object):
     ''' Abstraction layer to interact with strings in a containers '''
     def __init__(self, keyspace, server_list, cf):
         self.pool = pycassa.pool.ConnectionPool(keyspace, server_list, timeout=None)
         self.con = pycassa.columnfamily.ColumnFamily(self.pool, cf)
-    def check(self, key, value):
-        count = self.con.get_count(key)
-        my_set = set()
-        for _,data in self.con.xget(key):
-            my_set.add(tuple(json.loads(data)))
-        my_set.add(value)
+
+    def _load(key):
+        data = list()
+        for _, value in self.con.xget(key):
+            data.append(tuple(json.loads(value)))
+        return data
+
+    def _append(key, value, data):
+        data.append(value)
         i = 0
         d = {}
-        for value in my_set:
+        for value in data:
             d[str(i)] = json.dumps(value)
             i += 1
         self.con.insert(key, d)
-        return my_set
-
+        return data
 
 def x_read_events(files):
     ''' Reads the events '''
