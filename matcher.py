@@ -9,6 +9,7 @@
 """
 
 import argparse
+from datetime import datetime
 from subprocess import Popen, PIPE
 import time
 import traceback
@@ -16,7 +17,7 @@ from uuid import uuid1
 
 import pycassa
 import ujson as json
-import MySQLdb
+# import MySQLdb
 
 def read_arguments():
     p = argparse.ArgumentParser(description=__doc__)
@@ -27,15 +28,15 @@ def read_arguments():
 
 class AbstractContainer(object):
     ''' Abstraction layer to interact with strings in a containers '''
-    def _load(key):
+    def _load(self, key):
         raise NotImplementedError
-    def _append(key, value, data):
+    def _append(self, key, value, data):
         raise NotImplementedError
 
     def check(self, key, value):
         data = self._load(key)
         if value not in data:
-            self._append(key, value, data)
+            data = self._append(key, value, data)
         return data
 
 # memory structure to match in memory
@@ -44,12 +45,12 @@ class MemoryContainer(AbstractContainer):
     def __init__(self):
         self.container = {}
 
-    def _load(key):
+    def _load(self, key):
         if key not in self.container:
             self.container[key] = list()
         return self.container[key]
 
-    def _append(key, value, data):
+    def _append(self, key, value, data):
         self.container[key].append(value)
         return self.container[key]
 
@@ -81,20 +82,16 @@ class CassandraContainer(AbstractContainer):
         self.pool = pycassa.pool.ConnectionPool(keyspace, server_list, timeout=None)
         self.con = pycassa.columnfamily.ColumnFamily(self.pool, cf)
 
-    def _load(key):
+    def _load(self, key):
         data = list()
         for _, value in self.con.xget(key):
             data.append(tuple(json.loads(value)))
         return data
 
-    def _append(key, value, data):
+    def _append(self, key, value, data):
         data.append(value)
-        i = 0
-        d = {}
-        for value in data:
-            d[str(i)] = json.dumps(value)
-            i += 1
-        self.con.insert(key, d)
+        time_uuid = pycassa.util.convert_time_to_uuid(datetime.utcnow())
+        self.con.insert(key, {time_uuid: json.dumps(value)})
         return data
 
 def x_read_events(files):
