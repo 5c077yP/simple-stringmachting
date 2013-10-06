@@ -39,7 +39,7 @@ class AbstractContainer(object):
         return data
 
 # memory structure to match in memory
-class MemoryContainer(object):
+class MemoryContainer(AbstractContainer):
     ''' Abstraction layer to interact with strings in a containers '''
     def __init__(self):
         self.container = {}
@@ -75,7 +75,7 @@ class MemoryContainer(object):
 #             i += 1
 #         self.con.insert(key, d)
 
-class CassandraContainer(object):
+class CassandraContainer(AbstractContainer):
     ''' Abstraction layer to interact with strings in a containers '''
     def __init__(self, keyspace, server_list, cf):
         self.pool = pycassa.pool.ConnectionPool(keyspace, server_list, timeout=None)
