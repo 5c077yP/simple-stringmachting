@@ -54,27 +54,24 @@ class MemoryContainer(AbstractContainer):
         self.container[key].append(value)
         return self.container[key]
 
-# class MysqlContainer(object):
-#     ''' Abstraction layer to interact with strings in a containers '''
-#     def __init__(self, mysql_opts):
-#         self.con = MySQLdb.connection(**mysql_opts)
+class MysqlContainer(object):
+    ''' Abstraction layer to interact with strings in a containers '''
+    def __init__(self, mysql_opts):
+        self.con = MySQLdb.connection(**mysql_opts)
 
-#     def _load(key):
-#         c = self.con.cursor()
-#         c.execute(" SELECT index, value FROM ids WHERE key = ? ", [key])
-#         data = list()
-#         for (index, value) in c.fetchall():
-#             data.append(tuple(json.loads(value)))
-#         return data
+    def _load(key):
+        c = self.con.cursor()
+        c.execute(" SELECT time_uuid, value FROM ids WHERE key = ? ", [key])
+        data = list()
+        for (_, value) in c.fetchall():
+            data.append(tuple(json.loads(value)))
+        return data
 
-#     def _append(key, value, data):
-#         data.append(value)
-#         i = 0
-#         d = {}
-#         for value in data:
-#             d[str(i)] = json.dumps(value)
-#             i += 1
-#         self.con.insert(key, d)
+    def _append(key, value, data):
+        data.append(value)
+        time_uuid = uuid.uuid1().bytes.encode('base64').rstrip('=\n').replace('/', '_')
+        c.execute(" INSERT INTO ids (key, time_uuid, value) VALUES (?, ?, ?) ", [key, time_uuid, json.dumps(value)])
+        return data
 
 class CassandraContainer(AbstractContainer):
     ''' Abstraction layer to interact with strings in a containers '''

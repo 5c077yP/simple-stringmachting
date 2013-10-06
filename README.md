@@ -17,16 +17,16 @@ of tuples.
 
 ### json-like strucutre
 
-{
-  "key1": [
-    ["v11", "v12", ..., "v1i"],
-    ["v21", "v22", ..., "v2i"],
-    ...
-    ["vj1", "vj2", ..., "vji"]
-  ],
-  ...
-  "keyK": ...
-}
+    {
+      "key1": [
+        ["v11", "v12", ..., "v1i"],
+        ["v21", "v22", ..., "v2i"],
+        ...
+        ["vj1", "vj2", ..., "vji"]
+      ],
+      ...
+      "keyK": ...
+    }
 
 ## Container classes
 
