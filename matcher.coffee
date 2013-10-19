@@ -14,6 +14,7 @@ _ = require 'underscore'
 async = require 'async'
 nconf = require 'nconf'
 ll = require 'lazy-lines'
+statsd = new (require('node-statsd').StatsD)()
 
 nconf.argv
   t:
@@ -89,17 +90,25 @@ class MemoryContainer extends AbstractContainer
 
 readEvents = (filenames, cb) ->
   filenames.forEach (filename) ->
-    ll(fs.createReadStream(filename)).forEach (line) ->
+    frs = fs.createReadStream(filename)
+    ll(frs).forEach (line) ->
       try
         cb JSON.parse line
       catch e
         console.log "ERR -> #{e}"
+    frs.on 'end', -> 
+        console.log 'File is done'
+        process.exit 0
 
 class Matcher
   contructor: (@container, @trackedIds, @hexLens) ->
 
   _ignoreEvents: (event) ->
-    return true if event.campaign? and 3 > parseInt event.campaign, 10
+    if event.campaign? and 3 > parseInt event.campaign, 10
+        console.log "ignoring event -> #{event}"
+        statsd.increment 'matcher.ignoredEvents'
+        return true
+    return false
 
   _getTrackedFields: (event) ->
     fields = {}
@@ -109,10 +118,11 @@ class Matcher
       fields[tracked] = event[tracked]
     return fields
 
-  onEvent: (event) ->
+  onEvent: (event, done) ->
+    statsd.increment 'matcher.onEvent.calls'
     try
       # filter test events
-      return if @_ignoreEvents event
+      return done() if @_ignoreEvents event
 
       # get the static fields to compare events later on
       aid = event.actionId
@@ -136,6 +146,8 @@ class Matcher
             console.log stored, idValue, matches
     catch e
       console.log "ERR: #{e}"
+      statsd.increment 'matcher.onEvent.errors'
+    done()
 
 
 # the container to store all the ids
@@ -146,4 +158,18 @@ mCfg = nconf.get('matcher')
 matcher = new Matcher container, mCfg.tracked_ids, mCfg.hex_lens
 
 readEvents nconf.get('files'), (event) ->
-  matcher.onEvent event
+  t1 = new Date().getTime()
+  matcher.onEvent event, ->
+    t2 = new Date().getTime()
+    statsd.timing 'matcher.onEvent', t2-t1
+
+##
+# Some more statistics
+##
+setInterval ->
+    mem = process.memoryUsage()
+    statsd.gauge 'matcher.process.memoryUsage.rss', mem.rss
+    statsd.gauge 'matcher.process.memoryUsage.heapTotal', mem.heapTotal
+    statsd.gauge 'matcher.process.memoryUsage.heapUsed', mem.heapUsed
+    statsd.gauge 'matcher.process.uptime', process.uptime()
+, 10000         # every 10 seconds (like statsd is configured)
