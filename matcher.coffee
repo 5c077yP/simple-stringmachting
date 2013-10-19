@@ -12,22 +12,29 @@ fs = require 'fs'
 
 _ = require 'underscore'
 async = require 'async'
-nconf = require 'nconf'
+EventEmitter2 = require('eventemitter2').EventEmitter2
 ll = require 'lazy-lines'
-statsd = new (require('node-statsd').StatsD)()
+nconf = require 'nconf'
+statsd = new (require 'statsd-client')({host: 'statsd.example.com'})
 
-nconf.argv
-  t:
-    alias: 'container',
-    default: 'memory',
-    describe: 'the container class used'
-  c:
-    alias: 'config',
-    demand: true,
-    describe: '/path/to/config/json'
 
-nconf.file
-  file: nconf.get 'config'
+##
+# Reading the Arguments
+##
+readArguments = ->
+  nconf.argv
+    t:
+      alias: 'container',
+      default: 'MemoryContainer',
+      demand: true,
+      describe: 'the container class used'
+    c:
+      alias: 'config',
+      demand: true,
+      describe: '/path/to/config/json'
+
+  nconf.file
+    file: nconf.get 'config'
 
 
 class AbstractContainer
@@ -42,14 +49,15 @@ class AbstractContainer
     return data
 
 class MemoryContainer extends AbstractContainer
-  contructor: ->
+  constructor: ->
     @container = {}
   _load: (key) ->
     @container[key] = [] unless @container[key]?
     return @container[key]
   _append: (key, value, data) ->
-    @container[key].push value
-    return @container[key]
+    data.push value
+    @container[key] = data
+    return data
 
 # class MysqlContainer(object):
 #   ''' Abstraction layer to interact with strings in a containers '''
@@ -88,31 +96,47 @@ class MemoryContainer extends AbstractContainer
 #     self.con.insert(key, {time_uuid: json.dumps(value)})
 #     return data
 
-readEvents = (filenames, cb) ->
-  filenames.forEach (filename) ->
-    frs = fs.createReadStream(filename)
-    ll(frs).forEach (line) ->
-      try
-        cb JSON.parse line
-      catch e
-        console.log "ERR -> #{e}"
-    frs.on 'end', -> 
-        console.log 'File is done'
-        process.exit 0
+class Subscriber extends EventEmitter2
+  constructor: (@filenames) ->
+    async.each @filenames, (fname, cb) =>
+      console.log "Checking -> #{fname}"
+
+      frs = fs.createReadStream fname
+      ll(frs).forEach (line) =>
+        try
+          @emit 'event', JSON.parse line
+        catch e
+          console.log "ERR -> #{e}"
+
+      frs.on 'error', (err) =>
+        console.log "ERR -> #{err}"
+        @emit 'err', err
+        cb err
+
+      frs.on 'end', =>
+        console.log "File completed -> #{fname}"
+        cb()
+
+    , (err) =>
+      throw err if err?
+      console.log 'All file done.'
+      @emit 'end'
 
 class Matcher
-  contructor: (@container, @trackedIds, @hexLens) ->
+  constructor: (@container, config) ->
+    @trackedIds = config.tracked_ids
+    @hexLens = config.hex_lens
 
   _ignoreEvents: (event) ->
     if event.campaign? and 3 > parseInt event.campaign, 10
         console.log "ignoring event -> #{event}"
-        statsd.increment 'matcher.ignoredEvents'
+        # statsd.increment 'matcher.ignoredEvents'
         return true
     return false
 
   _getTrackedFields: (event) ->
     fields = {}
-    for tracked of @trackedIds
+    for tracked in @trackedIds
       continue unless event[tracked]?
       continue unless event[tracked].length in @hexLens
       fields[tracked] = event[tracked]
@@ -122,7 +146,7 @@ class Matcher
     statsd.increment 'matcher.onEvent.calls'
     try
       # filter test events
-      return done() if @_ignoreEvents event
+      return done null if @_ignoreEvents event
 
       # get the static fields to compare events later on
       aid = event.actionId
@@ -134,34 +158,55 @@ class Matcher
       tracked = @_getTrackedFields event
 
       # try to match
-      matches = []
       matchType = if etype == 14 then 13 else 14
-      for idName, idValue of tracked
+      async.map _.keys(tracked), (idName, cb) =>
         stored = data.concat [idName]
-        idSet = @container.check idValue, stored
-        if idSet.length > 1
-          # find whether this was an event match
-          matches = _.filter idSet, (d) -> d[1] == matchType
-          if matches.length
-            console.log stored, idValue, matches
+        idSet = @container.check tracked[idName], stored
+        return cb null, null unless idSet.length
+        # find whether this was an event match
+        matches = _.filter idSet, (d) => d[1] == matchType
+        return cb null, null unless matches.length
+        return cb null, [stored, tracked[idName], matches]
+      , (err, results) =>
+        throw err if err?
+        matches = _.compact results
+        return done null unless matches.length
+        done matches
     catch e
       console.log "ERR: #{e}"
       statsd.increment 'matcher.onEvent.errors'
-    done()
+    return done null
 
 
-# the container to store all the ids
-container = new MemoryContainer()
+##
+# Main part
+##
+main = ->
+  # the container to store all the ids
+  if 'MemoryContainer' == nconf.get 'container'
+    container = new MemoryContainer()
+  else
+    throw new Error "Unknown container class -> #{nconf.get 'container'}"
 
-# the matcher
-mCfg = nconf.get('matcher')
-matcher = new Matcher container, mCfg.tracked_ids, mCfg.hex_lens
+  # the matcher
+  matcher = new Matcher container, nconf.get 'matcher'
 
-readEvents nconf.get('files'), (event) ->
-  t1 = new Date().getTime()
-  matcher.onEvent event, ->
-    t2 = new Date().getTime()
-    statsd.timing 'matcher.onEvent', t2-t1
+  s = new Subscriber nconf.get 'files'
+
+  s.on 'event', (event) ->
+    t = new Date()
+    matcher.onEvent event, (matches) ->
+      statsd.timing 'matcher.onEvent', t
+      if matches
+        statsd.increment 'matcher.foundMatches'
+        console.log JSON.stringify matches
+  s.on 'end', ->
+    statsd.close()
+    process.exit 0
+
+if require.main is module
+  readArguments()
+  main()
 
 ##
 # Some more statistics

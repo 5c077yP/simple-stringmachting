@@ -6,7 +6,7 @@
       "127.0.0.1"
     ]
   },
-  "StringContainer": {},
+  "MemoryContainer": {},
   "files": [
     "matcher.coffee"
   ],
