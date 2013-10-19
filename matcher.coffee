@@ -24,6 +24,14 @@ nconf.argv
     alias: 'container',
     default: 'memory',
     describe: 'the container class used'
+  c:
+    alias: 'config',
+    demand: true,
+    describe: '/path/to/config/json'
+
+nconf.file
+  file: nconf.get 'config'
+
 
 class AbstractContainer
   _load: (key) ->
@@ -83,90 +91,62 @@ class MemoryContainer extends AbstractContainer
 #     self.con.insert(key, {time_uuid: json.dumps(value)})
 #     return data
 
-readEvents = (filenames) ->
+readEvents = (filenames, cb) ->
   filenames.forEach (filename) ->
     ll(fs.createReadStream(filename)).forEach (line) ->
-      console.log line
+      try
+        cb JSON.parse line
+      catch e
+        console.log "ERR -> #{e}"
 
+class Matcher
+  contructor: (@container, @trackedIds, @hexLens) ->
 
+  _ignoreEvents: (event) ->
+    return true if event['campaign']? and 3 > parseInt event['campaign'], 10
 
-# def x_read_events(files):
-#   ''' Reads the events '''
-#   for filename in files:
-#     with open(filename) as f:
-#       for line in f:
-#         try:
-#           yield json.loads(line)
-#         except Exception as _e:
-#           print 'ERR:', _e
+  _getTrackedFields: (event) ->
+    fields = {}
+    for tracked of @trackedIds
+      continue unless event[tracked]?
+      continue unless event[tracked].length in @hexLens
+      fields[tracked] = event[tracked]
+    return fields
 
-# class Matcher(object):
-#   """
-#     Class to match incoming events against each other
-#   """
-#   def __init__(self, container, tracked_ids, hex_lens):
-#     self.container = container
-#     self.tracked_ids = tracked_ids
-#     self.hex_lens = hex_lens
+  onEvent: (event) ->
+    try
+      # filter test events
+      return if @_ignoreEvents event
 
-#   def ignore_event(self, event):
-#     if 'campaign' in event and int(event['campaign']) in [1,2]:
-#       return True
+      # get the static fields to compare events later on
+      aid = event['actionId']
+      etype = parseInt event['TMEvent'], 10
+      etime = parseInt event['TMTimeEvent'], 10
+      data = [aid, etype, etime]
 
-#   def get_tracked_fields(self, event):
-#     fields = {}
-#     # get all tracked fields
-#     for tracked in self.tracked_ids:
-#       id_value = event[tracked] if tracked in event else ''
+      # get all tracked fields
+      tracked = @_getTrackedFields event
 
-#       # filter crappy ids
-#       if len(id_value) not in self.hex_lens: continue
+      # try to match
+      matches = []
+      matchType = if etype == 14 then 13 else 14
+      for idName, idValue of tracked
+        stored = data.concat [idName]
+        idSet = @container.check idValue, stored
+        if idSet.length > 1
+          # find whether this was an event match
+          matches = _.filter idSet, (d) -> d[1] == matchType
+          if matches.length
+            console.log stored, idValue, matches
+    catch e
+      console.log "ERR: #{e}"
 
-#       fields[tracked] = event[tracked]
-#     return fields
-
-#   def on_event(self, event):
-#     try:
-#       # filter test events
-#       if self.ignore_event(event): return
-
-#       # get the static fields to compare events later on
-#       aid = event['actionId']
-#       etype = int(event['TMEvent'])
-#       etime = int(event['TMTimeEvent'])
-#       data = (aid, etype, etime)
-
-#       # get all tracked fields
-#       tracked = self.get_tracked_fields(event)
-
-#       # try to match
-#       matches = []
-#       match_type = 13 if etype == 14 else 14
-#       for id_name, id_value in tracked.iteritems():
-#         stored = data + (id_name,)
-#         id_set = self.container.check(id_value, stored)
-#         if len(id_set) > 1:
-#           # find whether this was an event match
-#           matches = [x for x in id_set if x[1] == match_type]
-#           if matches:
-#             print stored, id_value, matches
-
-#     except Exception as _e:
-#       print 'ERR:', _e
-#       print traceback.format_exc()
-
-
-
-readEvents nconf.get('files').split(','), (event) ->
-  console.log event
 
 # the container to store all the ids
 container = new MemoryContainer()
 
-# # the matcher
-# matcher = Matcher(container, **config['matcher'])
+# the matcher
+matcher = new Matcher container, nconf.get('matcher')['tracked_ids'], nconf.get('matcher')['hex_lens']
 
-# for event in x_read_events(config['files']):
-#   matcher.on_event(event)
-
-
+readEvents nconf.get('files').split(','), (event) ->
+  matcher.onEvent event
