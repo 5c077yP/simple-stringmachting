@@ -98,27 +98,27 @@ class MemoryContainer extends AbstractContainer
 class Subscriber extends EventEmitter2
   constructor: (@filenames) ->
     async.each @filenames, (fname, cb) =>
-      console.log "Checking -> #{fname}"
+      console.error "Checking -> #{fname}"
 
       frs = fs.createReadStream fname
       ll(frs).forEach (line) =>
         try
           @emit 'event', JSON.parse line
         catch e
-          console.log "ERR -> #{e}"
+          console.error "ERR -> #{e}"
 
       frs.on 'error', (err) =>
-        console.log "ERR -> #{err}"
+        console.error "ERR -> #{err}"
         @emit 'err', err
         cb err
 
       frs.on 'end', =>
-        console.log "File completed -> #{fname}"
+        console.error "File completed -> #{fname}"
         cb()
 
     , (err) =>
       throw err if err?
-      console.log 'All file done.'
+      console.error 'All file done.'
       @emit 'end'
 
 class Matcher
@@ -128,7 +128,7 @@ class Matcher
 
   _ignoreEvents: (event) ->
     if event.campaign? and 3 > parseInt event.campaign, 10
-        console.log "ignoring event -> #{event}"
+        console.error "ignoring event -> #{event}"
         # statsd.increment 'matcher.ignoredEvents'
         return true
     return false
@@ -172,7 +172,7 @@ class Matcher
         return done null unless matches.length
         done matches
     catch e
-      console.log "ERR: #{e}"
+      console.error "ERR: #{e}"
       statsd.increment 'matcher.onEvent.errors'
     return done null
 
