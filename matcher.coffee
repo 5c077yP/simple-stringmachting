@@ -15,7 +15,7 @@ async = require 'async'
 EventEmitter2 = require('eventemitter2').EventEmitter2
 ll = require 'lazy-lines'
 nconf = require 'nconf'
-statsd = new (require 'statsd-client')({host: 'statsd.example.com'})
+statsd = new (require 'statsd-client')({host: '127.0.0.1'})
 
 
 ##
@@ -25,9 +25,8 @@ readArguments = ->
   nconf.argv
     t:
       alias: 'container',
-      default: 'MemoryContainer',
       demand: true,
-      describe: 'the container class used'
+      describe: 'the container class used [possible: MemoryContainer]'
     c:
       alias: 'config',
       demand: true,
