@@ -16,10 +16,6 @@ nconf = require 'nconf'
 ll = require 'lazy-lines'
 
 nconf.argv
-  f:
-    alias: ['f', 'files'],
-    demand: true
-    describe: 'comma separated list of file names that are parsed'
   t:
     alias: 'container',
     default: 'memory',
@@ -103,7 +99,7 @@ class Matcher
   contructor: (@container, @trackedIds, @hexLens) ->
 
   _ignoreEvents: (event) ->
-    return true if event['campaign']? and 3 > parseInt event['campaign'], 10
+    return true if event.campaign? and 3 > parseInt event.campaign, 10
 
   _getTrackedFields: (event) ->
     fields = {}
@@ -119,9 +115,9 @@ class Matcher
       return if @_ignoreEvents event
 
       # get the static fields to compare events later on
-      aid = event['actionId']
-      etype = parseInt event['TMEvent'], 10
-      etime = parseInt event['TMTimeEvent'], 10
+      aid = event.actionId
+      etype = parseInt event.TMEvent, 10
+      etime = parseInt event.TMTimeEvent, 10
       data = [aid, etype, etime]
 
       # get all tracked fields
@@ -146,7 +142,8 @@ class Matcher
 container = new MemoryContainer()
 
 # the matcher
-matcher = new Matcher container, nconf.get('matcher')['tracked_ids'], nconf.get('matcher')['hex_lens']
+mCfg = nconf.get('matcher')
+matcher = new Matcher container, mCfg.tracked_ids, mCfg.hex_lens
 
-readEvents nconf.get('files').split(','), (event) ->
+readEvents nconf.get('files'), (event) ->
   matcher.onEvent event

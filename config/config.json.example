@@ -1,0 +1,43 @@
+{
+  "CassandraContainer": {
+    "keyspace": "ks",
+    "cf": "cf",
+    "server_list":[
+      "127.0.0.1"
+    ]
+  },
+  "StringContainer": {},
+  "files": [
+    "matcher.coffee"
+  ],
+  "static_fields": [
+    "actionId",
+    "TMEvent"
+  ],
+  "matcher": {
+    "tracked_ids": [
+      "actionId",
+      "androidID",
+      "cookieId",
+      "deliveryId",
+      "DeviceUDID",
+      "IDFA",
+      "MACMD5",
+      "MACPLAIN",
+      "MACSHA1",
+      "ODIN1",
+      "openUDID",
+      "SHA1",
+      "UDIDPLAIN",
+      "UDID"
+    ],
+    "hex_lens": [
+      12,
+      16,
+      32,
+      36,
+      38,
+      40
+    ]
+  }
+}
