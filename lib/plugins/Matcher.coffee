@@ -7,13 +7,14 @@ EventEmitter2 = require('eventemitter2').EventEmitter2
 exports.name = 'matcher'
 
 exports.attach = (options) ->
+  return done new Error 'EventReader is missing' unless @eventReader?
   @matcher = new Matcher @, @config.get 'matcher'
   @log.info "Matcher attached"
 
 exports.detach = ->
+  @matcher.stop()
 
 exports.init = (done) ->
-  return done new Error 'EventReader is missing' unless @eventReader?
   @matcher.init done
 
 
@@ -21,8 +22,6 @@ class Matcher extends EventEmitter2
   constructor: (@app, config) ->
     @trackedIds = config.tracked_ids
     @hexLens = config.hex_lens
-
-  init: (done) =>
     @app.eventReader.on 'event', (event) =>
       t = new Date()
       @_onEvent event, (matches) =>
@@ -32,7 +31,11 @@ class Matcher extends EventEmitter2
           @emit 'match', matches
     @app.eventReader.on 'end', =>
       @emit 'end'
+
+  init: (done) =>
     done()
+
+  stop: ->
 
   _ignoreEvents: (event) ->
     if event.campaign? and 3 > parseInt event.campaign, 10

@@ -9,6 +9,7 @@ exports.attach = (options) ->
   @log.info "statsd attached"
 
 exports.detach = ->
+  @statsd.close()
 
 exports.init = (done) ->
   done()

@@ -18,6 +18,7 @@ exports.attach = (options) ->
   @log.info "EventReader attached"
 
 exports.detach = ->
+  @eventReader.stop()
 
 exports.init = (done) ->
   @eventReader.init done
@@ -50,3 +51,6 @@ class Subscriber extends EventEmitter2
         @emit 'end' if _.size(@linereaders) is 0
 
     done()
+
+  stop: ->
+

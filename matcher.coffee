@@ -36,13 +36,11 @@ app.use require './lib/plugins/MemoryMeasure'
 app.use require './lib/plugins/EventReader'
 app.use require './lib/plugins/Container'
 app.use require './lib/plugins/Matcher'
+app.use require './lib/plugins/OutputHandler'
 
 app.matcher.on 'end', ->
   app.remove 'memoryMeasure'
-  app.remove 'statsdClient'
-
-app.matcher.on 'match', (matches) ->
-  console.log JSON.stringify matches
+  app.remove 'statsd'
 
 app.init (err) ->
   throw err if err?
