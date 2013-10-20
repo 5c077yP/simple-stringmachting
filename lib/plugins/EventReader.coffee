@@ -34,8 +34,10 @@ class Subscriber extends EventEmitter2
       @app.log.info "Checking -> #{fname}"
 
       frs = fs.createReadStream fname
-      @linereaders[fname] = new ll.LineReadStream frs
-      @linereaders[fname].on 'line', (line) =>
+      lrs = new ll.LineReadStream frs
+      @linereaders[fname] = [lrs, frs]
+
+      lrs.on 'line', (line) =>
         try
           @emit 'event', JSON.parse line
         catch e
@@ -52,5 +54,8 @@ class Subscriber extends EventEmitter2
 
     done()
 
-  stop: ->
-
+  stop: =>
+    _.each @linereaders, (streamTuple, name) =>
+      streamTuple[1].pause()
+      delete @linereaders[name]
+    @emit 'end'

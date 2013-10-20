@@ -42,5 +42,8 @@ app.matcher.on 'end', ->
   app.remove 'memoryMeasure'
   app.remove 'statsd'
 
+process.on 'SIGINT', ->
+  app.remove 'eventReader'
+
 app.init (err) ->
   throw err if err?
