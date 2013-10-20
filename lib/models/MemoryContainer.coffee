@@ -6,13 +6,13 @@ class MemoryContainer extends AbstractContainer
   constructor: (@app) ->
     @container = {}
 
-  _load: (key) ->
+  _load: (key, cb) ->
     @container[key] = [] unless @container[key]?
-    return @container[key]
+    return cb @container[key]
 
-  _append: (key, value, data) ->
+  _append: (key, value, data, cb) ->
     data.push value
     @container[key] = data
-    return data
+    return cb data
 
 module.exports = MemoryContainer

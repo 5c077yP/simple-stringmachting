@@ -1,6 +1,7 @@
 config.json
 node_modules
 *.log
+*.log2
 *.pyc
 FILES
 HOSTS
