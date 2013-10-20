@@ -38,14 +38,17 @@ app.use require './lib/plugins/Container'
 app.use require './lib/plugins/Matcher'
 app.use require './lib/plugins/OutputHandler'
 
-app.matcher.on 'end', ->
-  app.remove 'memoryMeasure'
-  app.remove 'statsd'
-  app.remove 'container'
+# app.matcher.on 'end', ->
+  # app.remove 'memoryMeasure'
+  # app.remove 'statsd'
+  # app.remove 'container'
 
 process.on 'SIGINT', ->
+  app.remove 'memoryMeasure'
+  app.remove 'statsd'
   app.remove 'eventReader'
   app.remove 'container'
+  setTimeout (-> process.exit 1), 1000
 
 app.init (err) ->
   throw err if err?

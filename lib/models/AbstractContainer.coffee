@@ -16,8 +16,8 @@ class AbstractContainer
         @_append key, value, data, (data) ->
           return cb data
     catch e
-      @app.log.error "AbstractContainer: #{e}"
-      return cb null
-
+      @app.log.error "AbstractContainer: ", e
+      process.nextTick () =>
+        cb null
 
 module.exports = AbstractContainer

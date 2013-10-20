@@ -18,12 +18,12 @@ class CassandraContainer extends AbstractContainer
       @app.log.error "cassandra.client: #{err}"
 
   stop: ->
-    @app.log.warn "Shuting down cassandra container"
-    @client.shutdown () =>
-      @app.log.info "CassandraContainer::shutdown complete"
+    # @app.log.warn "Shuting down cassandra container"
+    # @client.shutdown () =>
+      # @app.log.info "CassandraContainer::shutdown complete"
 
   _load: (key, cb) ->
-    console.log key
+    # console.log key
     key = key.replace /-/g, ''
     @client.execute 'SELECT events FROM ids WHERE hash = ?', [key], (err, results) =>
       if err?
@@ -36,14 +36,15 @@ class CassandraContainer extends AbstractContainer
         return cb []
 
   _append: (key, value, data, cb) ->
+    key = key.replace /-/g, ''
     data = [] unless data?
     data.push value
     # TODO: filter duplicates ??
     data = _.uniq data , false, (item) -> JSON.stringify item
-    console.log JSON.stringify data
+    # console.log JSON.stringify data
     @client.execute 'INSERT INTO ids (hash,events) VALUES (?,?)', [key, JSON.stringify data], (err) =>
       if err?
-        @app.log.error "INSERT: #{err}"
+        @app.log.error "INSERT: ", err
         return cb null
       return cb data
 

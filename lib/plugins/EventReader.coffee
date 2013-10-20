@@ -39,7 +39,8 @@ class Subscriber extends EventEmitter2
 
       lrs.on 'line', (line) =>
         try
-          @emit 'event', JSON.parse line
+          process.nextTick () =>
+            @emit 'event', JSON.parse line
         catch e
           @app.log.error e
 

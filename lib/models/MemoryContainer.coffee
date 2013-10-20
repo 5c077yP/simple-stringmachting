@@ -10,11 +10,13 @@ class MemoryContainer extends AbstractContainer
 
   _load: (key, cb) ->
     @container[key] = [] unless @container[key]?
-    return cb @container[key]
+    process.nextTick () =>
+      cb @container[key]
 
   _append: (key, value, data, cb) ->
     data.push value
     @container[key] = data
-    return cb data
+    process.nextTick () =>
+      cb data
 
 module.exports = MemoryContainer

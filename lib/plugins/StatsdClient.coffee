@@ -10,6 +10,7 @@ exports.attach = (options) ->
 
 exports.detach = ->
   @statsd.close()
+  @log.warn 'Statsd client stopped'
 
 exports.init = (done) ->
   done()

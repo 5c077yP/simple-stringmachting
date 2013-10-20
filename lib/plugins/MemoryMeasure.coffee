@@ -21,6 +21,7 @@ exports.detach = ->
   @statsd.gauge 'matcher.process.memoryUsage.heapTotal', 0
   @statsd.gauge 'matcher.process.memoryUsage.heapUsed', 0
   @statsd.gauge 'matcher.process.uptime', 0
+  @log.warn 'memoryMeasure stopped'
 
 exports.init = (done) ->
   done()

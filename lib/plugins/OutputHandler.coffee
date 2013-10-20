@@ -15,7 +15,8 @@ exports.init = (done) ->
 class OutputHandler
   constructor: (@app, config) ->
     @app.matcher.on 'match', (matches) ->
-      console.log JSON.stringify matches
+      if matches? and matches.length > 1
+        console.log JSON.stringify matches
 
   init: (done) ->
     done()
