@@ -1,4 +1,12 @@
 {
+  "statsdClient": {
+    "host": "127.0.0.1"
+  },
+  "bunyan": {
+    "name": "simple-stringmatching",
+    "stream": "process.stdout",
+    "level": "info"
+  },
   "CassandraContainer": {
     "keyspace": "ks",
     "cf": "cf",
@@ -7,13 +15,11 @@
     ]
   },
   "MemoryContainer": {},
-  "files": [
-    "matcher.coffee"
-  ],
-  "static_fields": [
-    "actionId",
-    "TMEvent"
-  ],
+  "eventReader": {
+    "files": [
+      ""
+    ]
+  },
   "matcher": {
     "tracked_ids": [
       "actionId",

@@ -6,15 +6,21 @@
   "contributors": [
     { "name": "5c077yP", "email": "alex.spri@gmail.com" }
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/5c077yP/simple-stringmachting.git"
+  },
   "scripts": {
     "start": "./matcher.coffee"
   },
   "dependencies" : {
     "async": "0.2.x",
+    "bunyan": "0.22.x",
+    "broadway": "0.2.x",
     "nconf":  "0.6.x",
     "statsd-client": "0.0.x",
     "underscore": "1.5.x",
-    "lazy-lines": "0.1.x",
+    "lazylines": "1.0.x",
     "eventemitter2": "0.4.x"
   },
   "license": "MIT"
