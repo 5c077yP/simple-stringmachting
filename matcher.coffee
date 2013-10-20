@@ -41,9 +41,11 @@ app.use require './lib/plugins/OutputHandler'
 app.matcher.on 'end', ->
   app.remove 'memoryMeasure'
   app.remove 'statsd'
+  app.remove 'container'
 
 process.on 'SIGINT', ->
   app.remove 'eventReader'
+  app.remove 'container'
 
 app.init (err) ->
   throw err if err?

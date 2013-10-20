@@ -21,7 +21,8 @@
     "statsd-client": "0.0.x",
     "underscore": "1.5.x",
     "lazylines": "1.0.x",
-    "eventemitter2": "0.4.x"
+    "eventemitter2": "0.4.x",
+    "node-cassandra-cql": "0.2.x"
   },
   "license": "MIT"
 }

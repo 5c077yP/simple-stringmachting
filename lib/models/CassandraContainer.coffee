@@ -1,19 +1,51 @@
 # -- coffee --
 
-# class CassandraContainer(AbstractContainer):
-#   ''' Abstraction layer to interact with strings in a containers '''
-#   def __init__(self, keyspace, server_list, cf):
-#     self.pool = pycassa.pool.ConnectionPool(keyspace, server_list, timeout=None)
-#     self.con = pycassa.columnfamily.ColumnFamily(self.pool, cf)
+_ = require 'underscore'
+cassandra = require 'node-cassandra-cql'
 
-#   def _load(self, key):
-#     data = list()
-#     for _, value in self.con.xget(key):
-#       data.append(tuple(json.loads(value)))
-#     return data
+AbstractContainer = require './AbstractContainer'
 
-#   def _append(self, key, value, data):
-#     data.append(value)
-#     time_uuid = pycassa.util.convert_time_to_uuid(datetime.utcnow())
-#     self.con.insert(key, {time_uuid: json.dumps(value)})
-#     return data
+class CassandraContainer extends AbstractContainer
+  constructor: (@app, @options) ->
+    @client = new cassandra.Client
+      hosts: @options.server_list,
+      keyspace: @options.keyspace
+
+    # @client.on 'log', (level, message) =>
+      # @app.log[level] "cassandra.client: #{message}"
+
+    @client.on 'err', (err) =>
+      @app.log.error "cassandra.client: #{err}"
+
+  stop: ->
+    @app.log.warn "Shuting down cassandra container"
+    @client.shutdown () =>
+      @app.log.info "CassandraContainer::shutdown complete"
+
+  _load: (key, cb) ->
+    console.log key
+    key = key.replace /-/g, ''
+    @client.execute 'SELECT events FROM ids WHERE hash = ?', [key], (err, results) =>
+      if err?
+        @app.log.error "SELECT -key was: #{key} #{typeof key}- #{err}"
+        return cb null
+      if results? and results.rows.length
+        console.log results.rows[0].get 'events'
+        return cb JSON.parse results.rows[0].get 'events'
+      else
+        return cb []
+
+  _append: (key, value, data, cb) ->
+    data = [] unless data?
+    data.push value
+    # TODO: filter duplicates ??
+    data = _.uniq data , false, (item) -> JSON.stringify item
+    console.log JSON.stringify data
+    @client.execute 'INSERT INTO ids (hash,events) VALUES (?,?)', [key, JSON.stringify data], (err) =>
+      if err?
+        @app.log.error "INSERT: #{err}"
+        return cb null
+      return cb data
+
+
+module.exports = CassandraContainer

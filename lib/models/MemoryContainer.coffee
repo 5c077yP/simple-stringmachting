@@ -6,6 +6,8 @@ class MemoryContainer extends AbstractContainer
   constructor: (@app) ->
     @container = {}
 
+  stop: ->
+
   _load: (key, cb) ->
     @container[key] = [] unless @container[key]?
     return cb @container[key]

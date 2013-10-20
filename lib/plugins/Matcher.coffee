@@ -31,6 +31,7 @@ class Matcher extends EventEmitter2
           @emit 'match', matches
     @app.eventReader.on 'end', =>
       @emit 'end'
+    @buffer = 0
 
   init: (done) =>
     done()
@@ -54,6 +55,9 @@ class Matcher extends EventEmitter2
 
   _onEvent: (event, done) ->
     @app.statsd.increment 'matcher.onEvent.calls'
+    @buffer += 1
+    return done null if @buffer > 1000
+
     try
       # filter test events
       return done null if @_ignoreEvents event
@@ -71,12 +75,14 @@ class Matcher extends EventEmitter2
       matchType = if etype == 14 then 13 else 14
       async.map _.keys(tracked), (idName, cb) =>
         stored = data.concat [idName]
-        idSet = @app.container.check tracked[idName], stored
-        return cb null, null unless idSet.length
-        # find whether this was an event match
-        matches = _.filter idSet, (d) => d[1] == matchType
-        return cb null, null unless matches.length
-        return cb null, [stored, tracked[idName], matches]
+        console.log 'send send send'
+        @app.container.check tracked[idName], stored, (idSet) ->
+          console.log 'receive receive receive'
+          return cb null, null unless idSet? and idSet.length
+          # find whether this was an event match
+          matches = _.filter idSet, (d) => d[1] == matchType
+          return cb null, null unless matches.length
+          return cb null, [stored, tracked[idName], matches]
       , (err, results) =>
         throw err if err?
         matches = _.compact results

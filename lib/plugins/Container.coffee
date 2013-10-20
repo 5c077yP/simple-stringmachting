@@ -9,6 +9,7 @@ exports.attach = (options) ->
   @log.info "Container::#{containerType} attached"
 
 exports.detach = ->
+  @container.stop()
 
 exports.init = (done) ->
   done()
