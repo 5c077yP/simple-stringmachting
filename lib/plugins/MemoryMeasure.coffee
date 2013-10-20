@@ -16,6 +16,11 @@ exports.attach = (options) ->
 
 exports.detach = ->
   clearInterval @memoryMeasure
+  # clear all values
+  @statsd.gauge 'matcher.process.memoryUsage.rss', 0
+  @statsd.gauge 'matcher.process.memoryUsage.heapTotal', 0
+  @statsd.gauge 'matcher.process.memoryUsage.heapUsed', 0
+  @statsd.gauge 'matcher.process.uptime', 0
 
 exports.init = (done) ->
   done()
